@@ -1,5 +1,5 @@
 # gojsonrpc
-A Go package to **parse** and **create** [JSON-RPC 2.0](https://www.haproxy.org/download/2.7/doc/proxy-protocol.txt) requests/notifications and send JSON-RPC 2.0 responses.
+A Go package to **parse** and **create** [JSON-RPC 2.0](https://www.jsonrpc.org/specification) requests/notifications and send JSON-RPC 2.0 responses.
 
 ## Installation
 `go get github.com/kosmas-valianos/gojsonrpc`
