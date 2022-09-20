@@ -23,6 +23,10 @@ import (
 
 const jsonRPCProtocol = "2.0"
 
+type idInterface interface {
+	~int | ~float64 | ~string
+}
+
 type notification struct {
 	JsonRPC string          `json:"jsonrpc"`
 	Method  string          `json:"method"`
@@ -209,18 +213,7 @@ func NewErrorResponse(id any, jsonError *jsonRPCError) ([]byte, error) {
 	return append(responseRaw, '\n'), nil
 }
 
-type idInterface interface {
-	~int | ~float64 | ~string
-}
-
-// NewResultResponse creates a response from a result object using the id
-// Returns the raw bytes of the response or an error
-func NewResultResponse[I idInterface](id I, result any) ([]byte, error) {
-	response := response{
-		Jsonrpc: jsonRPCProtocol,
-		ID:      id,
-	}
-
+func marshalResultResponse(response response, result any) ([]byte, error) {
 	var err error
 	response.Result, err = json.Marshal(result)
 	if err != nil {
@@ -232,4 +225,25 @@ func NewResultResponse[I idInterface](id I, result any) ([]byte, error) {
 		return nil, err
 	}
 	return append(responseRaw, '\n'), nil
+}
+
+// NewResultResponse creates a response from a result object using the id
+// Returns the raw bytes of the response or an error
+func NewResultResponse[I idInterface](id I, result any) ([]byte, error) {
+	response := response{
+		Jsonrpc: jsonRPCProtocol,
+		ID:      id,
+	}
+
+	return marshalResultResponse(response, result)
+}
+
+// NewResultResponseFromRequest creates a response from a result object using a *request object
+// Returns the raw bytes of the response or an error
+func NewResultResponseFromRequest(request *request, result any) ([]byte, error) {
+	response := response{
+		Jsonrpc: jsonRPCProtocol,
+		ID:      request.ID,
+	}
+	return marshalResultResponse(response, result)
 }
