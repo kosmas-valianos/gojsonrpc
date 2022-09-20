@@ -34,7 +34,7 @@ type notification struct {
 }
 
 // ParseNotification parses a JSON-RPC notification from raw bytes
-// Returns a notification object or an error
+// Returns a *notification object or an error
 func ParseNotification(notificationRaw []byte) (*notification, error) {
 	var notification notification
 	err := json.Unmarshal(notificationRaw, &notification)
@@ -84,7 +84,7 @@ type request struct {
 }
 
 // ParseRequest parses a JSON-RPC request from raw bytes
-// Returns a request object or a jsonRPCError error object
+// Returns a *request object or a *jsonRPCError error object
 func ParseRequest(requestRaw []byte) (*request, *jsonRPCError) {
 	var request request
 	err := json.Unmarshal(requestRaw, &request)
@@ -164,8 +164,26 @@ func (j *jsonRPCError) Error() string {
 	return fmt.Sprintf("Code: %v Message: %v Data: %v", j.Code, j.Message, string(j.Data))
 }
 
+// AddData adds a data object using an existing jsonRPCError object
+// Returns a new *jsonRPCError object or an error
+// It's useful when a data object needs to be added in a common jsonRPCError object
+// e.g. JsonInvalidMethodParameters.AddData(data)
+func (j jsonRPCError) AddData(data any) (*jsonRPCError, error) {
+	jsonRPCError := jsonRPCError{
+		Code:    j.Code,
+		Message: j.Message,
+	}
+
+	var err error
+	jsonRPCError.Data, err = json.Marshal(data)
+	if err != nil {
+		return nil, err
+	}
+	return &jsonRPCError, nil
+}
+
 // NewJsonRPCError creates a jsonRPCError
-// Returns a jsonRPCError object or an error
+// Returns a *jsonRPCError object or an error
 func NewJsonRPCError(code int, message string, data any) (*jsonRPCError, error) {
 	if code < -32099 || code > -32000 {
 		return nil, errors.New("code must be between  -32099 and -32000")
@@ -191,7 +209,7 @@ type response struct {
 	ID      any             `json:"id,omitempty"`
 }
 
-// NewErrorResponse creates a response from a jsonRPCError object using the id if applicable
+// NewErrorResponse creates a response from a *jsonRPCError object using the id if applicable
 // Returns the raw bytes of the response or an error
 func NewErrorResponse(id any, jsonError *jsonRPCError) ([]byte, error) {
 	if jsonError == nil {
