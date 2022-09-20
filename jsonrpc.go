@@ -153,9 +153,10 @@ const (
 // Common error objects
 var (
 	JsonParseError              = jsonRPCError{Code: ParseError, Message: "Parse error"}
-	JsonInvalidRequest          = jsonRPCError{Code: ParseError, Message: "Invalid Request"}
-	JsonMethodNotFound          = jsonRPCError{Code: ParseError, Message: "Method not found"}
-	JsonInvalidMethodParameters = jsonRPCError{Code: ParseError, Message: "Invalid method parameters"}
+	JsonInvalidRequest          = jsonRPCError{Code: InvalidRequest, Message: "Invalid Request"}
+	JsonMethodNotFound          = jsonRPCError{Code: MethodNotFound, Message: "Method not found"}
+	JsonInvalidMethodParameters = jsonRPCError{Code: InvalidMethodParameters, Message: "Invalid method parameters"}
+	JsonInternalError           = jsonRPCError{Code: InternalError, Message: "Internal error"}
 )
 
 // Error implements Error() of error interface
