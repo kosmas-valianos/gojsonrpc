@@ -84,14 +84,14 @@ func TestNewNotification(t *testing.T) {
 				method: "subtract",
 				params: []int{42, 43},
 			},
-			want: []byte(`{"jsonrpc":"2.0","method":"subtract","params":[42,43]}`),
+			want: []byte(`{"jsonrpc":"2.0","method":"subtract","params":[42,43]}` + "\n"),
 		},
 		{
 			name: "Valid parameters - no params object",
 			args: args{
 				method: "subtract",
 			},
-			want: []byte(`{"jsonrpc":"2.0","method":"subtract"}`),
+			want: []byte(`{"jsonrpc":"2.0","method":"subtract"}` + "\n"),
 		},
 	}
 
@@ -200,7 +200,7 @@ func TestNewRequest(t *testing.T) {
 				},
 				id: "84dca59c-d3c2-4a0b-9ec7-627e810aeab7",
 			},
-			want: []byte(`{"jsonrpc":"2.0","method":"database","params":{"count":2,"names":["foo","bar"]},"id":"84dca59c-d3c2-4a0b-9ec7-627e810aeab7"}`),
+			want: []byte(`{"jsonrpc":"2.0","method":"database","params":{"count":2,"names":["foo","bar"]},"id":"84dca59c-d3c2-4a0b-9ec7-627e810aeab7"}` + "\n"),
 		},
 	}
 
@@ -301,7 +301,7 @@ func TestNewErrorResponse(t *testing.T) {
 					ServerProtocol: "http",
 				},
 			},
-			want: []byte(`{"jsonrpc":"2.0","error":{"code":-32000,"message":"Database error","data":{"server-name":"example.com","server-protocol":"http"}},"id":1}`),
+			want: []byte(`{"jsonrpc":"2.0","error":{"code":-32000,"message":"Database error","data":{"server-name":"example.com","server-protocol":"http"}},"id":1}` + "\n"),
 		},
 		{
 			name: "Invalid parameters",
@@ -351,7 +351,7 @@ func TestNewResultResponse(t *testing.T) {
 					Names: []string{"foo", "bar"},
 				},
 			},
-			want: []byte(`{"jsonrpc":"2.0","result":{"count":2,"names":["foo","bar"]},"id":"84dca59c-d3c2-4a0b-9ec7-627e810aeab7"}`),
+			want: []byte(`{"jsonrpc":"2.0","result":{"count":2,"names":["foo","bar"]},"id":"84dca59c-d3c2-4a0b-9ec7-627e810aeab7"}` + "\n"),
 		},
 	}
 

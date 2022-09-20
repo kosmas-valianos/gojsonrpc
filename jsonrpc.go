@@ -64,7 +64,12 @@ func NewNotification(method string, params any) ([]byte, error) {
 			return nil, err
 		}
 	}
-	return json.Marshal(notification)
+
+	notificationRaw, err := json.Marshal(&notification)
+	if err != nil {
+		return nil, err
+	}
+	return append(notificationRaw, '\n'), nil
 }
 
 type request struct {
@@ -118,7 +123,12 @@ func NewRequest[I idInterface](method string, params any, id I) ([]byte, error) 
 			return nil, err
 		}
 	}
-	return json.Marshal(request)
+
+	requestRaw, err := json.Marshal(&request)
+	if err != nil {
+		return nil, err
+	}
+	return append(requestRaw, '\n'), nil
 }
 
 type jsonRPCError struct {
@@ -196,7 +206,7 @@ func NewErrorResponse(id any, jsonError *jsonRPCError) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return responseRaw, nil
+	return append(responseRaw, '\n'), nil
 }
 
 type idInterface interface {
@@ -221,5 +231,5 @@ func NewResultResponse[I idInterface](id I, result any) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return responseRaw, nil
+	return append(responseRaw, '\n'), nil
 }
