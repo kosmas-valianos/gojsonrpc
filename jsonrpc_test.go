@@ -1,16 +1,20 @@
-/*  Copyright (C) 2022  Kosmas Valianos (kosmas.valianos@gmail.com)
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    https://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License. */
+/*
+ * gojsonrpc is Go package to parse and create JSON-RPC 2.0 requests/notifications and send JSON-RPC 2.0 responses
+ * Copyright (C) 2022  Kosmas Valianos (kosmas.valianos@gmail.com)
+ *
+ * The gojsonrpc package is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * The gojsonrpc package is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
 
 package jsonrpc
 
@@ -97,13 +101,13 @@ func TestNewNotification(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := NewNotification(tt.args.method, tt.args.params)
+			jsonRPCNotificationRaw, err := NewNotification(tt.args.method, tt.args.params)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewNotification() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !bytes.Equal(got, tt.want) {
-				t.Errorf("NewNotification() = %v, want %v", string(got), string(tt.want))
+			if !bytes.Equal(jsonRPCNotificationRaw, tt.want) {
+				t.Errorf("NewNotification() = %v, want %v", string(jsonRPCNotificationRaw), string(tt.want))
 			}
 		})
 	}
@@ -119,10 +123,11 @@ func equalJsonRPCErrors(e1, e2 *jsonRPCError) bool {
 
 func Test_ParseRequest(t *testing.T) {
 	tests := []struct {
-		name                 string
-		rawBytes             []byte
-		expectedRequest      *request
-		expectedJsonRPCError *jsonRPCError
+		name                       string
+		rawBytes                   []byte
+		expectedRequest            *request
+		expectedJsonRPCError       *jsonRPCError
+		expectedjsonRPCResponseRaw []byte
 	}{
 		{
 			name:     "Valid request",
@@ -133,31 +138,37 @@ func Test_ParseRequest(t *testing.T) {
 				Params:  []byte(`[42, 23]`),
 				ID:      1,
 			},
+			expectedjsonRPCResponseRaw: []byte(`{"jsonrpc":"2.0","result":"ok","id":1}` + "\n"),
 		},
 		{
-			name:                 "Parse error",
-			rawBytes:             []byte(`{"jsonrpc": "2.0", "method": "subtract", "params": [42, 23], "id": 1`),
-			expectedJsonRPCError: &JsonParseError,
+			name:                       "Parse error",
+			rawBytes:                   []byte(`{"jsonrpc": "2.0", "method": "subtract", "params": [42, 23], "id": 1`),
+			expectedJsonRPCError:       &JsonParseError,
+			expectedjsonRPCResponseRaw: []byte(`{"jsonrpc":"2.0","error":{"code":-32700,"message":"Parse error"},"id":null}` + "\n"),
 		},
 		{
-			name:                 "Invalid request - \"jsonrpc\" value wrong",
-			rawBytes:             []byte(`{"jsonrpc": "1.0", "method": "subtract", "params": [42, 23], "id": 1}`),
-			expectedJsonRPCError: &JsonInvalidRequest,
+			name:                       "Invalid request - \"jsonrpc\" value wrong",
+			rawBytes:                   []byte(`{"jsonrpc": "1.0", "method": "subtract", "params": [42, 23], "id": 1}`),
+			expectedJsonRPCError:       &JsonInvalidRequest,
+			expectedjsonRPCResponseRaw: []byte(`{"jsonrpc":"2.0","error":{"code":-32600,"message":"Invalid Request"},"id":null}` + "\n"),
 		},
 		{
-			name:                 "Invalid request - \"method\" value has prefix rpc.",
-			rawBytes:             []byte(`{"jsonrpc": "2.0", "method": "rpc.subtract", "params": [42, 23], "id": 1}`),
-			expectedJsonRPCError: &JsonInvalidRequest,
+			name:                       "Invalid request - \"method\" value has prefix rpc.",
+			rawBytes:                   []byte(`{"jsonrpc": "2.0", "method": "rpc.subtract", "params": [42, 23], "id": 1}`),
+			expectedJsonRPCError:       &JsonInvalidRequest,
+			expectedjsonRPCResponseRaw: []byte(`{"jsonrpc":"2.0","error":{"code":-32600,"message":"Invalid Request"},"id":null}` + "\n"),
 		},
 		{
-			name:                 "Invalid request - \"id\" missing",
-			rawBytes:             []byte(`{"jsonrpc": "2.0", "method": "subtract", "params": [42, 23]}`),
-			expectedJsonRPCError: &JsonInvalidRequest,
+			name:                       "Invalid request - \"id\" missing",
+			rawBytes:                   []byte(`{"jsonrpc": "2.0", "method": "subtract", "params": [42, 23]}`),
+			expectedJsonRPCError:       &JsonInvalidRequest,
+			expectedjsonRPCResponseRaw: []byte(`{"jsonrpc":"2.0","error":{"code":-32600,"message":"Invalid Request"},"id":null}` + "\n"),
 		},
 		{
-			name:                 "Invalid request - \"id\" value has invalid type",
-			rawBytes:             []byte(`{"jsonrpc": "2.0", "method": "subtract", "params": [42, 23], "id": {"test": 1}}`),
-			expectedJsonRPCError: &JsonInvalidRequest,
+			name:                       "Invalid request - \"id\" value has invalid type",
+			rawBytes:                   []byte(`{"jsonrpc": "2.0", "method": "subtract", "params": [42, 23], "id": {"test": 1}}`),
+			expectedJsonRPCError:       &JsonInvalidRequest,
+			expectedjsonRPCResponseRaw: []byte(`{"jsonrpc":"2.0","error":{"code":-32600,"message":"Invalid Request"},"id":null}` + "\n"),
 		},
 	}
 
@@ -168,8 +179,27 @@ func Test_ParseRequest(t *testing.T) {
 				t.Errorf("ParseRequest() error = %v, wantErr %v", jsonRPCError, tt.expectedJsonRPCError)
 				return
 			}
+
 			if !equalJsonRPCErrors(jsonRPCError, tt.expectedJsonRPCError) {
 				t.Errorf("ParseRequest() = %v, want %v", request, tt.expectedRequest)
+			}
+
+			if jsonRPCError != nil {
+				jsonRPCResponseRaw, err := NewErrorResponse(nil, jsonRPCError)
+				if err != nil {
+					t.Error(err)
+				}
+				if !bytes.Equal(jsonRPCResponseRaw, tt.expectedjsonRPCResponseRaw) {
+					t.Errorf("NewErrorResponse() = %v, want %v", string(jsonRPCResponseRaw), string(tt.expectedjsonRPCResponseRaw))
+				}
+			} else {
+				jsonRPCResponseRaw, err := request.NewResultResponse("ok")
+				if err != nil {
+					t.Error(err)
+				}
+				if !bytes.Equal(jsonRPCResponseRaw, tt.expectedjsonRPCResponseRaw) {
+					t.Errorf("NewErrorResponse() = %v, want %v", string(jsonRPCResponseRaw), string(tt.expectedjsonRPCResponseRaw))
+				}
 			}
 		})
 	}
@@ -206,13 +236,13 @@ func TestNewRequest(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := NewRequest(tt.args.method, tt.args.params, tt.args.id)
+			jsonRPCRequestRaw, err := NewRequest(tt.args.method, tt.args.params, tt.args.id)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewRequest() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NewRequest() = %v, want %v", string(got), string(tt.want))
+			if !bytes.Equal(jsonRPCRequestRaw, tt.want) {
+				t.Errorf("NewRequest() = %v, want %v", string(jsonRPCRequestRaw), string(tt.want))
 			}
 		})
 	}
@@ -276,7 +306,7 @@ func TestNewJsonRPCError(t *testing.T) {
 
 func TestNewErrorResponse(t *testing.T) {
 	type args struct {
-		id      any
+		id      int
 		code    int
 		message string
 		data    any
@@ -321,7 +351,7 @@ func TestNewErrorResponse(t *testing.T) {
 				t.Errorf("NewErrorResponse() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
+			if !bytes.Equal(got, tt.want) {
 				t.Errorf("NewErrorResponse() = %v, want %v", string(got), string(tt.want))
 			}
 		})
@@ -357,13 +387,13 @@ func TestNewResultResponse(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := NewResultResponse(tt.args.id, tt.args.result)
+			jsonRPCResponseRaw, err := NewResultResponse(tt.args.id, tt.args.result)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewResultResponse() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NewResultResponse() = %v, want %v", string(got), string(tt.want))
+			if !bytes.Equal(jsonRPCResponseRaw, tt.want) {
+				t.Errorf("NewResultResponse() = %v, want %v", string(jsonRPCResponseRaw), string(tt.want))
 			}
 		})
 	}

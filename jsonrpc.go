@@ -33,7 +33,7 @@ type notification struct {
 	Params  json.RawMessage `json:"params,omitempty"`
 }
 
-// ParseNotification parses a JSON-RPC notification from raw bytes
+// ParseNotification parses a JSON-RPC notification from raw bytes.
 // Returns a *notification object or an error
 func ParseNotification(notificationRaw []byte) (*notification, error) {
 	var notification notification
@@ -53,7 +53,7 @@ func ParseNotification(notificationRaw []byte) (*notification, error) {
 	return &notification, nil
 }
 
-// NewNotification creates a notification using the method and the params
+// NewNotification creates a notification using the method and the params.
 // Returns the raw bytes of the notification or an error
 func NewNotification(method string, params any) ([]byte, error) {
 	notification := notification{
@@ -83,17 +83,29 @@ type request struct {
 	ID      any             `json:"id"`
 }
 
-// ParseRequest parses a JSON-RPC request from raw bytes
+// NewResultResponse creates a result response using a result object (nil for omitting).
+// Returns the raw bytes of the response or an error
+func (r *request) NewResultResponse(result any) ([]byte, error) {
+	response := response{
+		Jsonrpc: jsonRPCProtocol,
+		ID:      r.ID,
+	}
+	return marshalResultResponse(response, result)
+}
+
+// ParseRequest parses a JSON-RPC request from raw bytes.
 // Returns a *request object or a *jsonRPCError error object
 func ParseRequest(requestRaw []byte) (*request, *jsonRPCError) {
+	jsonRPCError := &JsonParseError
 	var request request
 	err := json.Unmarshal(requestRaw, &request)
 	if err != nil {
-		return nil, &JsonParseError
+		return nil, jsonRPCError
 	}
+	jsonRPCError = &JsonInvalidRequest
 
 	if request.JsonRPC != jsonRPCProtocol {
-		return nil, &JsonInvalidRequest
+		return nil, jsonRPCError
 	}
 
 	if strings.HasPrefix(request.Method, "rpc.") {
@@ -107,11 +119,11 @@ func ParseRequest(requestRaw []byte) (*request, *jsonRPCError) {
 	case string:
 		return &request, nil
 	default:
-		return nil, &JsonInvalidRequest
+		return nil, jsonRPCError
 	}
 }
 
-// NewRequest creates a request using the method, the id and the params
+// NewRequest creates a request using the method, the params and the id.
 // Returns the raw bytes of the request or an error
 func NewRequest[I idInterface](method string, params any, id I) ([]byte, error) {
 	request := request{
@@ -164,10 +176,10 @@ func (j *jsonRPCError) Error() string {
 	return fmt.Sprintf("Code: %v Message: %v Data: %v", j.Code, j.Message, string(j.Data))
 }
 
-// AddData adds a data object using an existing jsonRPCError object
-// Returns a new *jsonRPCError object or an error
-// It's useful when a data object needs to be added in a common jsonRPCError object
-// e.g. JsonInvalidMethodParameters.AddData(data)
+// AddData adds a data object using an existing jsonRPCError object.
+// Returns a new *jsonRPCError object or an error.
+// It's useful when a data object needs to be added in a common jsonRPCError object.
+// e.g. jsonRPCError, _ = jsonrpc.JsonInvalidMethodParameters.AddData(message)
 func (j jsonRPCError) AddData(data any) (*jsonRPCError, error) {
 	jsonRPCError := jsonRPCError{
 		Code:    j.Code,
@@ -182,7 +194,7 @@ func (j jsonRPCError) AddData(data any) (*jsonRPCError, error) {
 	return &jsonRPCError, nil
 }
 
-// NewJsonRPCError creates a jsonRPCError
+// NewJsonRPCError creates a jsonRPCError.
 // Returns a *jsonRPCError object or an error
 func NewJsonRPCError(code int, message string, data any) (*jsonRPCError, error) {
 	if code < -32099 || code > -32000 {
@@ -206,10 +218,10 @@ type response struct {
 	Jsonrpc string          `json:"jsonrpc"`
 	Result  json.RawMessage `json:"result,omitempty"`
 	Error   *jsonRPCError   `json:"error,omitempty"`
-	ID      any             `json:"id,omitempty"`
+	ID      any             `json:"id"`
 }
 
-// NewErrorResponse creates a response from a *jsonRPCError object using the id if applicable
+// NewErrorResponse creates a response from a *jsonRPCError object using the id if it's applicable and not nil.
 // Returns the raw bytes of the response or an error
 func NewErrorResponse(id any, jsonError *jsonRPCError) ([]byte, error) {
 	if jsonError == nil {
@@ -222,7 +234,19 @@ func NewErrorResponse(id any, jsonError *jsonRPCError) ([]byte, error) {
 	}
 
 	if jsonError.Code != ParseError && jsonError.Code != InvalidRequest {
-		response.ID = id
+		if id == nil {
+			return nil, errors.New("id must be present unless the error is ParseError or InvalidRequest")
+		}
+		switch id.(type) {
+		case int:
+			response.ID = id
+		case float64:
+			response.ID = id
+		case string:
+			response.ID = id
+		default:
+			return nil, errors.New("id must be of type int, float64 or string")
+		}
 	}
 
 	responseRaw, err := json.Marshal(&response)
@@ -230,6 +254,17 @@ func NewErrorResponse(id any, jsonError *jsonRPCError) ([]byte, error) {
 		return nil, err
 	}
 	return append(responseRaw, '\n'), nil
+}
+
+// NewResultResponse creates a response from a result object using the id.
+// Returns the raw bytes of the response or an error
+func NewResultResponse[I idInterface](id I, result any) ([]byte, error) {
+	response := response{
+		Jsonrpc: jsonRPCProtocol,
+		ID:      id,
+	}
+
+	return marshalResultResponse(response, result)
 }
 
 func marshalResultResponse(response response, result any) ([]byte, error) {
@@ -244,25 +279,4 @@ func marshalResultResponse(response response, result any) ([]byte, error) {
 		return nil, err
 	}
 	return append(responseRaw, '\n'), nil
-}
-
-// NewResultResponse creates a response from a result object using the id
-// Returns the raw bytes of the response or an error
-func NewResultResponse[I idInterface](id I, result any) ([]byte, error) {
-	response := response{
-		Jsonrpc: jsonRPCProtocol,
-		ID:      id,
-	}
-
-	return marshalResultResponse(response, result)
-}
-
-// NewResultResponseFromRequest creates a response from a result object using a *request object
-// Returns the raw bytes of the response or an error
-func NewResultResponseFromRequest(request *request, result any) ([]byte, error) {
-	response := response{
-		Jsonrpc: jsonRPCProtocol,
-		ID:      request.ID,
-	}
-	return marshalResultResponse(response, result)
 }
