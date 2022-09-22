@@ -1,5 +1,5 @@
 # gojsonrpc
-A Go package to **parse** and **create** [JSON-RPC 2.0](https://www.jsonrpc.org/specification) JSON-RPC 2.0 requests/notifications/responses
+A Go package to **parse** and **create** [JSON-RPC 2.0](https://www.jsonrpc.org/specification) requests/notifications/responses
 
 ## Installation
 `go get github.com/kosmas-valianos/gojsonrpc`
