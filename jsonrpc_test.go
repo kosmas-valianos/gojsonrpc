@@ -64,6 +64,7 @@ func Test_ParseNotification(t *testing.T) {
 				t.Errorf("ParseNotification() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
+
 			if !reflect.DeepEqual(notification, tt.expectedNotification) {
 				t.Errorf("ParseNotification() = %v, want %v", notification, tt.expectedNotification)
 			}
@@ -106,6 +107,7 @@ func TestNewNotification(t *testing.T) {
 				t.Errorf("NewNotification() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
+
 			if !bytes.Equal(jsonRPCNotificationRaw, tt.want) {
 				t.Errorf("NewNotification() = %v, want %v", string(jsonRPCNotificationRaw), string(tt.want))
 			}
@@ -125,14 +127,14 @@ func Test_ParseRequest(t *testing.T) {
 	tests := []struct {
 		name                       string
 		rawBytes                   []byte
-		expectedRequest            *request
+		expectedJsonRPCRequest     *request
 		expectedJsonRPCError       *jsonRPCError
 		expectedjsonRPCResponseRaw []byte
 	}{
 		{
 			name:     "Valid request",
 			rawBytes: []byte(`{"jsonrpc": "2.0", "method": "subtract", "params": [42, 23], "id": 1}`),
-			expectedRequest: &request{
+			expectedJsonRPCRequest: &request{
 				JsonRPC: jsonRPCProtocol,
 				Method:  "subtract",
 				Params:  []byte(`[42, 23]`),
@@ -174,31 +176,55 @@ func Test_ParseRequest(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			request, jsonRPCError := ParseRequest(tt.rawBytes)
-			if !equalRequests(request, tt.expectedRequest) {
+			jsonRPCrequest, jsonRPCError := ParseRequest(tt.rawBytes)
+			if !equalRequests(jsonRPCrequest, tt.expectedJsonRPCRequest) {
 				t.Errorf("ParseRequest() error = %v, wantErr %v", jsonRPCError, tt.expectedJsonRPCError)
 				return
 			}
 
 			if !equalJsonRPCErrors(jsonRPCError, tt.expectedJsonRPCError) {
-				t.Errorf("ParseRequest() = %v, want %v", request, tt.expectedRequest)
+				t.Errorf("ParseRequest() = %v, want %v", jsonRPCrequest, tt.expectedJsonRPCRequest)
 			}
 
 			if jsonRPCError != nil {
 				jsonRPCResponseRaw, err := NewErrorResponse(nil, jsonRPCError)
 				if err != nil {
 					t.Error(err)
+				} else {
+					_, err = ParseResponse(jsonRPCResponseRaw)
+					if err != nil {
+						t.Error(err)
+					}
+
 				}
+
 				if !bytes.Equal(jsonRPCResponseRaw, tt.expectedjsonRPCResponseRaw) {
 					t.Errorf("NewErrorResponse() = %v, want %v", string(jsonRPCResponseRaw), string(tt.expectedjsonRPCResponseRaw))
 				}
-			} else {
-				jsonRPCResponseRaw, err := request.NewResultResponse("ok")
+
+				_, err = ParseResponse(jsonRPCResponseRaw)
 				if err != nil {
 					t.Error(err)
 				}
+			} else {
+				jsonRPCResponseRaw, err := jsonRPCrequest.NewResultResponse("ok")
+				if err != nil {
+					t.Error(err)
+				} else {
+					_, err = ParseResponse(jsonRPCResponseRaw)
+					if err != nil {
+						t.Error(err)
+					}
+
+				}
+
 				if !bytes.Equal(jsonRPCResponseRaw, tt.expectedjsonRPCResponseRaw) {
-					t.Errorf("NewErrorResponse() = %v, want %v", string(jsonRPCResponseRaw), string(tt.expectedjsonRPCResponseRaw))
+					t.Errorf("NewResultResponse() = %v, want %v", string(jsonRPCResponseRaw), string(tt.expectedjsonRPCResponseRaw))
+				}
+
+				_, err = ParseResponse(jsonRPCResponseRaw)
+				if err != nil {
+					t.Error(err)
 				}
 			}
 		})
@@ -241,6 +267,7 @@ func TestNewRequest(t *testing.T) {
 				t.Errorf("NewRequest() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
+
 			if !bytes.Equal(jsonRPCRequestRaw, tt.want) {
 				t.Errorf("NewRequest() = %v, want %v", string(jsonRPCRequestRaw), string(tt.want))
 			}
@@ -291,14 +318,14 @@ func TestNewJsonRPCError(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Log(tt.args.data)
-			got, err := NewJsonRPCError(tt.args.code, tt.args.message, tt.args.data)
+			jsonRPCError, err := NewJsonRPCError(tt.args.code, tt.args.message, tt.args.data)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewJsonRPCError() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("NewJsonRPCError() = %v, want %v", got, tt.want)
+
+			if !reflect.DeepEqual(jsonRPCError, tt.want) {
+				t.Errorf("NewJsonRPCError() = %v, want %v", jsonRPCError, tt.want)
 			}
 		})
 	}
@@ -346,13 +373,21 @@ func TestNewErrorResponse(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			jsonError, _ := NewJsonRPCError(tt.args.code, tt.args.message, tt.args.data)
-			got, err := NewErrorResponse(tt.args.id, jsonError)
+			jsonRPCResponseRaw, err := NewErrorResponse(tt.args.id, jsonError)
+			if err == nil {
+				_, err = ParseResponse(jsonRPCResponseRaw)
+				if err != nil {
+					t.Error(err)
+				}
+			}
+
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewErrorResponse() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !bytes.Equal(got, tt.want) {
-				t.Errorf("NewErrorResponse() = %v, want %v", string(got), string(tt.want))
+
+			if !bytes.Equal(jsonRPCResponseRaw, tt.want) {
+				t.Errorf("NewErrorResponse() = %v, want %v", string(jsonRPCResponseRaw), string(tt.want))
 			}
 		})
 	}
@@ -388,10 +423,18 @@ func TestNewResultResponse(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			jsonRPCResponseRaw, err := NewResultResponse(tt.args.id, tt.args.result)
+			if err == nil {
+				_, err = ParseResponse(jsonRPCResponseRaw)
+				if err != nil {
+					t.Error(err)
+				}
+			}
+
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewResultResponse() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
+
 			if !bytes.Equal(jsonRPCResponseRaw, tt.want) {
 				t.Errorf("NewResultResponse() = %v, want %v", string(jsonRPCResponseRaw), string(tt.want))
 			}

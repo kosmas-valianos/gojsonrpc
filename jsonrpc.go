@@ -87,7 +87,7 @@ type request struct {
 // Returns the raw bytes of the response or an error
 func (r *request) NewResultResponse(result any) ([]byte, error) {
 	response := response{
-		Jsonrpc: jsonRPCProtocol,
+		JsonRPC: jsonRPCProtocol,
 		ID:      r.ID,
 	}
 	return marshalResultResponse(response, result)
@@ -215,10 +215,40 @@ func NewJsonRPCError(code int, message string, data any) (*jsonRPCError, error) 
 }
 
 type response struct {
-	Jsonrpc string          `json:"jsonrpc"`
+	JsonRPC string          `json:"jsonrpc"`
 	Result  json.RawMessage `json:"result,omitempty"`
 	Error   *jsonRPCError   `json:"error,omitempty"`
 	ID      any             `json:"id"`
+}
+
+// ParseResponse parses a JSON-RPC request from raw bytes.
+// Returns a *response object or a error
+func ParseResponse(responseRaw []byte) (*response, error) {
+	var response response
+	err := json.Unmarshal(responseRaw, &response)
+	if err != nil {
+		return nil, err
+	}
+
+	if response.JsonRPC != jsonRPCProtocol {
+		return nil, fmt.Errorf("jsonrpc must be exactly \"%v\"", jsonRPCProtocol)
+	}
+
+	if len(response.Result) == 0 && response.Error == nil {
+		return nil, errors.New("response must have a \"result\" or an \"error\"")
+	} else if len(response.Result) > 0 && response.Error != nil {
+		return nil, errors.New("response must not have a \"result\" and an \"error\"")
+	}
+
+	if response.ID == nil {
+		if response.Error == nil {
+			return nil, errors.New("response's ID must not be null when error does not exist")
+		} else if response.Error.Code != ParseError && response.Error.Code != InvalidRequest {
+			return nil, fmt.Errorf("response's ID must be null only when error's code is %v or %v", ParseError, InvalidRequest)
+		}
+	}
+
+	return &response, nil
 }
 
 // NewErrorResponse creates a response from a *jsonRPCError object using the id if it's applicable and not nil.
@@ -229,7 +259,7 @@ func NewErrorResponse(id any, jsonError *jsonRPCError) ([]byte, error) {
 	}
 
 	response := response{
-		Jsonrpc: jsonRPCProtocol,
+		JsonRPC: jsonRPCProtocol,
 		Error:   jsonError,
 	}
 
@@ -260,7 +290,7 @@ func NewErrorResponse(id any, jsonError *jsonRPCError) ([]byte, error) {
 // Returns the raw bytes of the response or an error
 func NewResultResponse[I idInterface](id I, result any) ([]byte, error) {
 	response := response{
-		Jsonrpc: jsonRPCProtocol,
+		JsonRPC: jsonRPCProtocol,
 		ID:      id,
 	}
 
