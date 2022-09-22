@@ -59,14 +59,14 @@ func Test_ParseNotification(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			notification, err := ParseNotification(tt.rawBytes)
+			jsonRPCnotification, err := ParseNotification(tt.rawBytes)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ParseNotification() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 
-			if !reflect.DeepEqual(notification, tt.expectedNotification) {
-				t.Errorf("ParseNotification() = %v, want %v", notification, tt.expectedNotification)
+			if !reflect.DeepEqual(jsonRPCnotification, tt.expectedNotification) {
+				t.Errorf("ParseNotification() = %v, want %v", jsonRPCnotification, tt.expectedNotification)
 			}
 		})
 	}
