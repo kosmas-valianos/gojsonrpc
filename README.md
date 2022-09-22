@@ -1,5 +1,5 @@
 # gojsonrpc
-A Go package to **parse** and **create** [JSON-RPC 2.0](https://www.jsonrpc.org/specification) requests/notifications and send JSON-RPC 2.0 responses.
+A Go package to **parse** and **create** [JSON-RPC 2.0](https://www.jsonrpc.org/specification) JSON-RPC 2.0 requests/notifications/responses
 
 ## Installation
 `go get github.com/kosmas-valianos/gojsonrpc`
@@ -17,11 +17,11 @@ params := struct {
 	Count: 2,
 	Names: []string{"foo", "bar"},
 }
-rawRequest, err := NewRequest("mymethod", params, 5)
+jsonRPCRequestRaw, err := NewRequest("mymethod", params, 5)
 if err != nil {
 	fmt.Println(err)
 }
-rawNotification, err := NewNotification("mymethod", params)
+jsonRPCNotificationRaw, err := NewNotification("mymethod", params)
 if err != nil {
 	fmt.Println(err)
 }
@@ -31,14 +31,14 @@ if err != nil {
 Use the `ParseRequest()`, `ParseNotification` respectively by passing a raw `[]bytes` slice. Both functions return either a `*request`/`*notification` object or an `error`. In case of `ParseRequest()` the error is a `*jsonRPCError` object which can then be used to create a response with `NewErrorResponse()`.
 
 ```golang
-notification, err := ParseNotification([]byte(`{"jsonrpc": "2.0", "method": "subtract", "params": [42, 23]}`))
+jsonRPCnotification, err := ParseNotification([]byte(`{"jsonrpc": "2.0", "method": "subtract", "params": [42, 23]}`))
 if err != nil {
 	fmt.Println(err)
 }
 
-request, jsonRPCError := ParseRequest([]byte(`{"jsonrpc": "2.0", "method": "subtract", "params": [42, 23], "id": 1}`))
+jsonRPCrequest, jsonRPCError := ParseRequest([]byte(`{"jsonrpc": "2.0", "method": "subtract", "params": [42, 23], "id": 1}`))
 if jsonRPCError != nil {
-  // jsonRPCError implements Error() of error interface so a nice error will be printed
+	// jsonRPCError implements Error() of error interface so a nice error will be printed
 	fmt.Println(jsonRPCError)
 }
 ```
@@ -54,25 +54,25 @@ result := struct {
 	Count: 2,
 	Names: []string{"foo", "bar"},
 }
-rawBytes, err := NewResultResponse(5, result)
+jsonRPCResponseRaw, err := NewResultResponse(5, result)
 if err != nil {
 	fmt.Println(err)
 }
 ```
 
-Use the `NewErrorResponse()` similarly but instead of a `result` object use a `*jsonRPCError` object. It can be given one from `ParseRequest()` in case there was a failure there, or a custom one can be created with `NewJsonRPCError()`. It returns a `[]bytes` slice with the raw data or an `error`.
+Use the `NewErrorResponse()` similarly but instead of a `result` object use a `*jsonRPCError` object. In case the error code is not `ParseError` or `InvalidRequest`, an `id` must be passed which must be `int`, `float64` or `string`. It returns a `[]bytes` slice with the raw data or an `error`.
 
 ```golang
-request, jsonRPCError := ParseRequest([]byte(`{"jsonrpc": "2.0", "method": "subtract", "params": [42, 23], "id": 1}`))
+jsonRPCRequest, jsonRPCError := ParseRequest([]byte(`{"jsonrpc": "2.0", "method": "subtract", "params": [42, 23]}`))
 if jsonRPCError != nil {
-  rawBytes, err := NewErrorResponse(5, jsonRPCError)
+  jsonRPCResponseRaw, err := NewErrorResponse(nil, jsonRPCError)
   if err != nil {
     fmt.Println(err)
   }
 }
 ```
 
-Use the `NewJsonRPCError` by passing a `code`, a `message` and optionally a `data` object to create a custom `*jsonRPCError` object which can then be used in `NewErrorResponse()`. Note that according to the specification the `code` in case of custom error must be between `-32099` and `-32000`. It returns a `*jsonRPCError` object or an `error`.
+Use the `NewJsonRPCError` by passing a `code`, a `message` and optionally a `data` object to create a custom `*jsonRPCError` object which can then be used in `NewErrorResponse()`. Note that according to the specification the `code` in case of a custom error must be between `-32099` and `-32000`. It returns a `*jsonRPCError` object or an `error`.
 
 ```golang
 data := struct {
@@ -82,8 +82,18 @@ data := struct {
   ServerName:     "example.com",
   ServerProtocol: "http",
 }
-jsonError, err := NewJsonRPCError(-32000, "Database error", data)
+jsonRPCError, err := NewJsonRPCError(-32000, "Database error", data)
 if err != nil {
   fmt.Println(err)
+}
+```
+
+### Parse a JSON-RPC 2.0 response
+Use the `ParseResponse()` by passing a raw `[]bytes` slice. It returns a *response object or a error
+
+```golang
+jsonRPCResponse, err = ParseResponse(jsonRPCResponseRaw)
+if err != nil {
+	t.Error(err)
 }
 ```
