@@ -89,7 +89,7 @@ if err != nil {
 ```
 
 ### Parse a JSON-RPC 2.0 response
-Use the `ParseResponse()` by passing a raw `[]bytes` slice. It returns a *response object or a error
+Use the `ParseResponse()` by passing a raw `[]bytes` slice. It returns a `*response` object or an `error`
 
 ```golang
 jsonRPCResponse, err = ParseResponse(jsonRPCResponseRaw)
