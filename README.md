@@ -28,7 +28,7 @@ if err != nil {
 ```
 
 ### Parse a JSON-RPC 2.0 request/notification
-Use the `ParseRequest()`, `ParseNotification` respectively by passing a raw `[]bytes` slice. Both functions return either a `*request`/`*notification` object or an `error`. In case of `ParseRequest()` the error is a `*jsonRPCError` object which can then be used to create a response with `NewErrorResponse()`.
+Use the `ParseRequest()`, `ParseNotification()` respectively by passing a raw `[]bytes` slice. Both functions return either a `*request`/`*notification` object or an `error`. In case of `ParseRequest()` the error is a `*jsonRPCError` object which can then be used to create a response with `NewErrorResponse()`.
 
 ```golang
 jsonRPCnotification, err := ParseNotification([]byte(`{"jsonrpc": "2.0", "method": "subtract", "params": [42, 23]}`))
